@@ -6,8 +6,21 @@ import '../../utils/app_theme.dart';
 import '../../models/facility_model.dart';
 import 'lantai_list_screen.dart';
 
-class GedungListScreen extends StatelessWidget {
+class GedungListScreen extends StatefulWidget {
   const GedungListScreen({super.key});
+
+  @override
+  State<GedungListScreen> createState() => _GedungListScreenState();
+}
+
+class _GedungListScreenState extends State<GedungListScreen> {
+  late Future<List<GedungModel>> _gedungListFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _gedungListFuture = context.read<FacilityProvider>().getGedungListAsync();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +66,47 @@ class GedungListScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ...facility.gedungList
-                    .map((g) => _buildGedungCard(context, g)),
+                FutureBuilder<List<GedungModel>>(
+                  future: _gedungListFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            'Gagal memuat data gedung',
+                            style: GoogleFonts.outfit(color: AppColors.danger),
+                          ),
+                        ),
+                      );
+                    }
+                    final list = snapshot.data ?? [];
+                    if (list.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            'Tidak ada gedung tersedia.',
+                            style: GoogleFonts.outfit(color: AppColors.textMuted),
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: list.map((g) => _buildGedungCard(context, g)).toList(),
+                    );
+                  },
+                ),
                 const SizedBox(height: 80),
               ]),
             ),

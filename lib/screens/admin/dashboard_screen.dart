@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../providers/auth_provider.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../blocs/auth/auth_event.dart';
 import '../../providers/facility_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../models/facility_model.dart';
@@ -31,6 +34,8 @@ class DashboardScreen extends StatelessWidget {
                 _buildRecentMaintenance(context),
                 const SizedBox(height: 24),
                 _buildRecentLaporan(context),
+                const SizedBox(height: 24),
+                _buildRealtimeActivity(context),
                 const SizedBox(height: 80),
               ]),
             ),
@@ -71,8 +76,8 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       actions: [
-        Consumer<AuthProvider>(
-          builder: (context, auth, _) {
+        BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
             return PopupMenuButton(
               color: AppColors.bgCardLight,
               shape: RoundedRectangleBorder(
@@ -87,7 +92,7 @@ class DashboardScreen extends StatelessWidget {
                           color: AppColors.textPrimary, size: 18),
                       const SizedBox(width: 10),
                       Text(
-                        auth.currentUser?.name ?? '',
+                        state.currentUser?.name ?? '',
                         style: GoogleFonts.outfit(
                           color: AppColors.textPrimary,
                           fontSize: 14,
@@ -99,7 +104,7 @@ class DashboardScreen extends StatelessWidget {
                 const PopupMenuDivider(),
                 PopupMenuItem(
                   onTap: () {
-                    auth.logout();
+                    context.read<AuthBloc>().add(LogoutRequested());
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -133,7 +138,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      auth.currentUser?.avatar ?? 'A',
+                      state.currentUser?.avatar ?? 'A',
                       style: GoogleFonts.outfit(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -151,7 +156,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildGreeting(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final authState = context.watch<AuthBloc>().state;
     final now = DateTime.now();
     String greeting;
     if (now.hour < 12) {
@@ -190,7 +195,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  auth.currentUser?.name ?? 'Admin',
+                  authState.currentUser?.name ?? 'Admin',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -206,7 +211,7 @@ class DashboardScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    auth.currentUser?.department ?? 'Admin',
+                    authState.currentUser?.department ?? 'Admin',
                     style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.white,
@@ -739,6 +744,145 @@ class DashboardScreen extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRealtimeActivity(BuildContext context) {
+    final facility = context.watch<FacilityProvider>();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.sensors_rounded,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Live System Activity Log',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Simulasi monitoring real-time (StreamBuilder)',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.greenAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'LIVE',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.greenAccent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<String>(
+            stream: facility.activityLogStream,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final logText = snapshot.data ?? 'Tidak ada aktivitas baru.';
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 500),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, 0.2),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Container(
+                  key: ValueKey<String>(logText),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgDark,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.circle_notifications_rounded,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          logText,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

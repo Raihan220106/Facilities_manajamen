@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'providers/auth_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'blocs/auth/auth_bloc.dart';
 import 'providers/facility_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'utils/app_theme.dart';
@@ -26,7 +27,7 @@ class FOMApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        BlocProvider<AuthBloc>(create: (_) => AuthBloc()),
         ChangeNotifierProvider(create: (_) => FacilityProvider()),
       ],
       child: MaterialApp(

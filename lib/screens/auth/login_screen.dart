@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../providers/auth_provider.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_event.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../utils/app_theme.dart';
 import '../admin/admin_home_screen.dart';
 
@@ -61,27 +63,15 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  void _handleLogin() {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = context.read<AuthProvider>();
-    final success = await auth.login(
-      _emailController.text.trim(),
-      _passwordController.text,
+    context.read<AuthBloc>().add(
+      LoginRequested(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      ),
     );
-
-    if (success && mounted) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const AdminHomeScreen(),
-          transitionDuration: const Duration(milliseconds: 400),
-          transitionsBuilder: (_, anim, __, child) {
-            return FadeTransition(opacity: anim, child: child);
-          },
-        ),
-      );
-    }
   }
 
   @override
@@ -245,8 +235,22 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginCard() {
-    return Consumer<AuthProvider>(
-      builder: (context, auth, _) {
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const AdminHomeScreen(),
+              transitionDuration: const Duration(milliseconds: 400),
+              transitionsBuilder: (_, anim, __, child) {
+                return FadeTransition(opacity: anim, child: child);
+              },
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
         return Container(
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
@@ -285,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen>
                 const SizedBox(height: 28),
 
                 // Error banner
-                if (auth.errorMessage != null) ...[
+                if (state.errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -303,11 +307,13 @@ class _LoginScreenState extends State<LoginScreen>
                           size: 18,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          auth.errorMessage!,
-                          style: GoogleFonts.outfit(
-                            color: AppColors.danger,
-                            fontSize: 13,
+                        Expanded(
+                          child: Text(
+                            state.errorMessage!,
+                            style: GoogleFonts.outfit(
+                              color: AppColors.danger,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -333,7 +339,7 @@ class _LoginScreenState extends State<LoginScreen>
                     color: AppColors.textPrimary,
                     fontSize: 15,
                   ),
-                  onChanged: (_) => auth.clearError(),
+                  onChanged: (_) => context.read<AuthBloc>().add(ClearErrorRequested()),
                   decoration: InputDecoration(
                     hintText: 'Masukkan email Anda',
                     prefixIcon: const Icon(
@@ -367,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen>
                     color: AppColors.textPrimary,
                     fontSize: 15,
                   ),
-                  onChanged: (_) => auth.clearError(),
+                  onChanged: (_) => context.read<AuthBloc>().add(ClearErrorRequested()),
                   decoration: InputDecoration(
                     hintText: 'Masukkan password Anda',
                     prefixIcon: const Icon(
@@ -437,7 +443,7 @@ class _LoginScreenState extends State<LoginScreen>
                 SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: auth.isLoading
+                  child: state.isLoading
                       ? Container(
                           decoration: BoxDecoration(
                             gradient: AppColors.primaryGradient,

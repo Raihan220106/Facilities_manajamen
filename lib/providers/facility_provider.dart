@@ -117,4 +117,30 @@ class FacilityProvider extends ChangeNotifier {
     }
     return map;
   }
+
+  // ============================================================
+  // MOBILE COMPUTING SPECIAL COMPONENT: Future & Stream Simulation
+  // ============================================================
+
+  // Untuk FutureBuilder: Simulasi pengambilan data gedung dari API dengan delay 1.5 detik
+  Future<List<GedungModel>> getGedungListAsync() async {
+    await Future.delayed(const Duration(milliseconds: 1500));
+    return _gedungList;
+  }
+
+  // Untuk StreamBuilder: Aliran data log aktivitas sistem real-time setiap 4 detik
+  Stream<String> get activityLogStream {
+    final List<String> logs = [
+      'Gedung Utama: Lift Lantai 2 berfungsi normal setelah maintenance.',
+      'Gedung IT: Sensor suhu Ruang Server mendeteksi suhu aman (21°C).',
+      'Gedung B: Petugas Sari memulai patroli rutin di Lantai 1.',
+      'Gedung Utama: AC Ruang Rapat A dibersihkan oleh vendor.',
+      'Gedung Utama: Penggantian lampu koridor Lantai 3 selesai.',
+      'Gedung B: Pengecekan APAR di Lantai 2 terverifikasi aman.',
+      'Gedung IT: Akses pintu Ruang Server dibuka oleh Admin.',
+    ];
+    return Stream.periodic(const Duration(seconds: 4), (count) {
+      return logs[count % logs.length];
+    });
+  }
 }
