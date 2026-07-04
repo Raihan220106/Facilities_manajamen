@@ -93,6 +93,14 @@ Digunakan untuk mendengarkan aliran data (Stream) secara terus-menerus dan mempe
 Diterapkan untuk memisahkan logika bisnis dari UI. Aliran data searah (*unidirectional data flow*) diimplementasikan secara ketat menggunakan event dan state.
 * Diterapkan pada sistem Autentikasi (`AuthBloc`). State dari login (Loading, Authenticated, Failure) dipantau secara reaktif menggunakan `BlocConsumer` di [login_screen.dart](file:///Users/user/Documents/Facilities_manajamen/lib/screens/auth/login_screen.dart).
 
+#### f. Local Storage (SharedPreferences)
+Digunakan untuk menyimpan sesi login secara lokal pada perangkat pengguna agar tidak perlu memasukkan email & password setiap kali aplikasi dibuka (Auto-Login).
+* Diterapkan di [auth_bloc.dart](file:///Users/user/Documents/Facilities_manajamen/lib/blocs/auth/auth_bloc.dart) untuk menyimpan email saat login sukses dan menghapusnya saat logout, serta divalidasi saat inisialisasi di [main.dart](file:///Users/user/Documents/Facilities_manajamen/lib/main.dart).
+
+#### g. CRUD Reaktif (Gedung, Ruangan, Aset)
+Untuk memfasilitasi peran Admin dalam mengelola fasilitas kantor secara real-time, kami menerapkan CRUD penuh yang terintegrasi secara reaktif dengan State Management `FacilityProvider`.
+* Setiap penambahan, pengubahan, atau penghapusan gedung, ruangan, atau aset akan memicu pembaruan UI secara instan (termasuk visualisasi Pie Chart di Dashboard).
+
 ---
 
 ## 3. Library (Package) yang Digunakan

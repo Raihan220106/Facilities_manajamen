@@ -45,7 +45,7 @@ class _GedungListScreenState extends State<GedungListScreen> {
               IconButton(
                 icon: const Icon(Icons.add_rounded,
                     color: AppColors.textPrimary, size: 26),
-                onPressed: () {},
+                onPressed: () => _showGedungDialog(),
               ),
             ],
           ),
@@ -289,6 +289,48 @@ class _GedungListScreenState extends State<GedungListScreen> {
                       ],
                     ),
                   ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(
+                      Icons.more_vert_rounded,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                    color: AppColors.bgCardLight,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AppColors.border),
+                    ),
+                    onSelected: (val) {
+                      if (val == 'edit') {
+                        _showGedungDialog(gedung: gedung);
+                      } else if (val == 'delete') {
+                        _confirmDeleteGedung(gedung);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_rounded, color: AppColors.textPrimary, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Edit', style: GoogleFonts.outfit(color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_rounded, color: AppColors.danger, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Hapus', style: GoogleFonts.outfit(color: AppColors.danger)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
                   const Icon(
                     Icons.arrow_forward_ios_rounded,
                     color: AppColors.textMuted,
@@ -366,6 +408,153 @@ class _GedungListScreenState extends State<GedungListScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _refreshGedungList() {
+    setState(() {
+      _gedungListFuture = context.read<FacilityProvider>().getGedungListAsync();
+    });
+  }
+
+  void _showGedungDialog({GedungModel? gedung}) {
+    final nameController = TextEditingController(text: gedung?.name ?? '');
+    final alamatController = TextEditingController(text: gedung?.alamat ?? '');
+    final pjController = TextEditingController(text: gedung?.penanggungJawab ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.bgCardLight,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          title: Text(
+            gedung == null ? 'Tambah Gedung Baru' : 'Edit Gedung',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(labelText: 'Nama Gedung'),
+                    validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: alamatController,
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(labelText: 'Alamat Gedung'),
+                    validator: (v) => v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: pjController,
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(labelText: 'Penanggung Jawab'),
+                    validator: (v) => v == null || v.isEmpty ? 'Nama PJ wajib diisi' : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal', style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                final provider = context.read<FacilityProvider>();
+                if (gedung == null) {
+                  final newGedungId = 'ged_${DateTime.now().millisecondsSinceEpoch}';
+                  final newGedung = GedungModel(
+                    id: newGedungId,
+                    name: nameController.text.trim(),
+                    alamat: alamatController.text.trim(),
+                    penanggungJawab: pjController.text.trim(),
+                    totalLantai: 1,
+                    lantai: [
+                      LantaiModel(
+                        id: '${newGedungId}_l1',
+                        nomorLantai: 1,
+                        name: 'Lantai 1',
+                        gedungId: newGedungId,
+                        ruangan: [],
+                      ),
+                    ],
+                  );
+                  provider.addGedung(newGedung);
+                } else {
+                  provider.updateGedung(
+                    gedung.id,
+                    nameController.text.trim(),
+                    alamatController.text.trim(),
+                    pjController.text.trim(),
+                  );
+                }
+                Navigator.pop(context);
+                _refreshGedungList();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: Text('Simpan', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteGedung(GedungModel gedung) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.bgCardLight,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          title: Text(
+            'Hapus Gedung',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w700,
+              color: AppColors.danger,
+            ),
+          ),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus "${gedung.name}"? Semua data lantai, ruangan, dan aset di dalamnya akan terhapus permanen.',
+            style: GoogleFonts.outfit(color: AppColors.textPrimary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal', style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                context.read<FacilityProvider>().deleteGedung(gedung.id);
+                Navigator.pop(context);
+                _refreshGedungList();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+              child: Text('Hapus', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

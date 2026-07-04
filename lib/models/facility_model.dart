@@ -134,7 +134,12 @@ class LaporanKerusakan {
   final String id;
   final String assetId;
   final String assetName;
-  final String ruangan;
+  final String gedungId;
+  final String gedungName;
+  final int nomorLantai;
+  final String lantaiName;
+  final String ruanganId;
+  final String ruanganName;
   final String deskripsi;
   final String pelaporId;
   final String pelaporName;
@@ -146,7 +151,12 @@ class LaporanKerusakan {
     required this.id,
     required this.assetId,
     required this.assetName,
-    required this.ruangan,
+    required this.gedungId,
+    required this.gedungName,
+    required this.nomorLantai,
+    required this.lantaiName,
+    required this.ruanganId,
+    required this.ruanganName,
     required this.deskripsi,
     required this.pelaporId,
     required this.pelaporName,
@@ -154,4 +164,28 @@ class LaporanKerusakan {
     required this.prioritas,
     required this.sudahDitindak,
   });
+
+  /// Lokasi lengkap untuk ditampilkan di UI
+  String get lokasiLengkap => '$ruanganName, $lantaiName, $gedungName';
+
+  /// Buat salinan dengan field sudahDitindak yang diubah
+  LaporanKerusakan copyWith({bool? sudahDitindak}) {
+    return LaporanKerusakan(
+      id: id,
+      assetId: assetId,
+      assetName: assetName,
+      gedungId: gedungId,
+      gedungName: gedungName,
+      nomorLantai: nomorLantai,
+      lantaiName: lantaiName,
+      ruanganId: ruanganId,
+      ruanganName: ruanganName,
+      deskripsi: deskripsi,
+      pelaporId: pelaporId,
+      pelaporName: pelaporName,
+      tanggalLapor: tanggalLapor,
+      prioritas: prioritas,
+      sudahDitindak: sudahDitindak ?? this.sudahDitindak,
+    );
+  }
 }

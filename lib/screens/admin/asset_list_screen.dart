@@ -1,22 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../providers/facility_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../models/facility_model.dart';
 
 class AssetListScreen extends StatelessWidget {
-  final RuanganModel ruangan;
+  final String gedungId;
+  final int nomorLantai;
+  final String ruanganId;
   final String lantaiName;
   final String gedungName;
 
   const AssetListScreen({
     super.key,
-    required this.ruangan,
+    required this.gedungId,
+    required this.nomorLantai,
+    required this.ruanganId,
     required this.lantaiName,
     required this.gedungName,
   });
 
   @override
   Widget build(BuildContext context) {
+    final facility = context.watch<FacilityProvider>();
+    final gedung = facility.getGedungById(gedungId);
+    if (gedung == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Gedung tidak ditemukan'),
+        ),
+      );
+    }
+
+    final lantai = gedung.lantai.firstWhere(
+      (l) => l.nomorLantai == nomorLantai,
+      orElse: () => LantaiModel(id: 'temp_floor', nomorLantai: nomorLantai, name: lantaiName, gedungId: gedungId, ruangan: []),
+    );
+
+    final ruangan = lantai.ruangan.firstWhere(
+      (r) => r.id == ruanganId,
+      orElse: () => RuanganModel(id: ruanganId, name: 'Ruangan', lantaiId: lantaiName, kapasitas: 10, tipe: 'Ruang Kerja', assets: []),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: CustomScrollView(
@@ -53,7 +79,7 @@ class AssetListScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.add_rounded,
                     color: AppColors.textPrimary, size: 26),
-                onPressed: () {},
+                onPressed: () => _showAssetDialog(context),
               ),
             ],
           ),
@@ -62,7 +88,7 @@ class AssetListScreen extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Room summary
-                _buildRoomSummary(),
+                _buildRoomSummary(ruangan),
                 const SizedBox(height: 20),
                 Text(
                   '${ruangan.assets.length} Aset di ${ruangan.name}',
@@ -73,7 +99,7 @@ class AssetListScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ...ruangan.assets.map((a) => _buildAssetCard(context, a)),
+                ...ruangan.assets.map((a) => _buildAssetCard(context, ruangan, a)),
                 const SizedBox(height: 80),
               ]),
             ),
@@ -83,7 +109,7 @@ class AssetListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRoomSummary() {
+  Widget _buildRoomSummary(RuanganModel ruangan) {
     int baik = ruangan.assets.where((a) => a.status == AssetStatus.baik).length;
     int rusak =
         ruangan.assets.where((a) => a.status == AssetStatus.rusak).length;
@@ -163,7 +189,7 @@ class AssetListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAssetCard(BuildContext context, AssetModel asset) {
+  Widget _buildAssetCard(BuildContext context, RuanganModel ruangan, AssetModel asset) {
     Color statusColor;
     IconData statusIcon;
     String statusLabel;
@@ -213,21 +239,6 @@ class AssetListScreen extends StatelessWidget {
         break;
       case 'Server':
         categoryIcon = Icons.dns_rounded;
-        break;
-      case 'UPS':
-        categoryIcon = Icons.battery_charging_full_rounded;
-        break;
-      case 'Genset':
-        categoryIcon = Icons.electrical_services_rounded;
-        break;
-      case 'Audio':
-        categoryIcon = Icons.speaker_rounded;
-        break;
-      case 'Konferensi':
-        categoryIcon = Icons.video_call_rounded;
-        break;
-      case 'Keamanan':
-        categoryIcon = Icons.security_rounded;
         break;
       default:
         categoryIcon = Icons.devices_rounded;
@@ -417,17 +428,20 @@ class AssetListScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.build_rounded, size: 16),
-                      label: const Text('Maintenance'),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                      label: const Text('Hapus'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.warning,
-                        side: const BorderSide(color: AppColors.warning),
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _confirmDeleteAsset(context, asset);
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -442,7 +456,10 @@ class AssetListScreen extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAssetDialog(context, asset: asset);
+                      },
                     ),
                   ),
                 ],
@@ -483,6 +500,198 @@ class AssetListScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAssetDialog(BuildContext context, {AssetModel? asset}) {
+    final nameController = TextEditingController(text: asset?.name ?? '');
+    final brandController = TextEditingController(text: asset?.brand ?? '');
+    final snController = TextEditingController(text: asset?.serialNumber ?? '');
+    final kondisiController = TextEditingController(text: asset?.kondisi ?? 'Sangat Baik');
+    String selectedCategory = asset?.category ?? 'AC';
+    AssetStatus selectedStatus = asset?.status ?? AssetStatus.baik;
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: AppColors.bgCardLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              title: Text(
+                asset == null ? 'Tambah Aset Baru' : 'Edit Aset',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Nama Aset'),
+                        validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedCategory,
+                        dropdownColor: AppColors.bgCardLight,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Kategori'),
+                        items: const [
+                          DropdownMenuItem(value: 'AC', child: Text('AC')),
+                          DropdownMenuItem(value: 'Proyektor', child: Text('Proyektor')),
+                          DropdownMenuItem(value: 'Smart TV', child: Text('Smart TV')),
+                          DropdownMenuItem(value: 'Printer', child: Text('Printer')),
+                          DropdownMenuItem(value: 'CCTV', child: Text('CCTV')),
+                          DropdownMenuItem(value: 'Lampu', child: Text('Lampu')),
+                          DropdownMenuItem(value: 'Server', child: Text('Server')),
+                        ],
+                        onChanged: (val) {
+                          setModalState(() {
+                            selectedCategory = val!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: brandController,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Merek / Brand'),
+                        validator: (v) => v == null || v.isEmpty ? 'Merek wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: snController,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Serial Number'),
+                        validator: (v) => v == null || v.isEmpty ? 'Serial number wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: kondisiController,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Detail Kondisi (Fisik)'),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<AssetStatus>(
+                        value: selectedStatus,
+                        dropdownColor: AppColors.bgCardLight,
+                        style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Status Aset'),
+                        items: const [
+                          DropdownMenuItem(value: AssetStatus.baik, child: Text('Baik')),
+                          DropdownMenuItem(value: AssetStatus.rusak, child: Text('Rusak')),
+                          DropdownMenuItem(value: AssetStatus.maintenance, child: Text('Maintenance')),
+                          DropdownMenuItem(value: AssetStatus.tidakAktif, child: Text('Tidak Aktif')),
+                        ],
+                        onChanged: (val) {
+                          setModalState(() {
+                            selectedStatus = val!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Batal', style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (!formKey.currentState!.validate()) return;
+                    
+                    final provider = context.read<FacilityProvider>();
+                    if (asset == null) {
+                      final newAsset = AssetModel(
+                        id: 'asset_${DateTime.now().millisecondsSinceEpoch}',
+                        name: nameController.text.trim(),
+                        category: selectedCategory,
+                        status: selectedStatus,
+                        ruanganId: ruanganId,
+                        lastMaintenance: DateTime.now(),
+                        serialNumber: snController.text.trim(),
+                        brand: brandController.text.trim(),
+                        kondisi: kondisiController.text.trim(),
+                      );
+                      provider.addAsset(gedungId, nomorLantai, ruanganId, newAsset);
+                    } else {
+                      final updatedAsset = AssetModel(
+                        id: asset.id,
+                        name: nameController.text.trim(),
+                        category: selectedCategory,
+                        status: selectedStatus,
+                        ruanganId: asset.ruanganId,
+                        lastMaintenance: asset.lastMaintenance,
+                        serialNumber: snController.text.trim(),
+                        brand: brandController.text.trim(),
+                        kondisi: kondisiController.text.trim(),
+                      );
+                      provider.updateAsset(gedungId, nomorLantai, ruanganId, updatedAsset);
+                    }
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: Text('Simpan', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteAsset(BuildContext context, AssetModel asset) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.bgCardLight,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          title: Text(
+            'Hapus Aset',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w700,
+              color: AppColors.danger,
+            ),
+          ),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus aset "${asset.name}"? Data ini tidak dapat dikembalikan.',
+            style: GoogleFonts.outfit(color: AppColors.textPrimary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal', style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                context.read<FacilityProvider>().deleteAsset(gedungId, nomorLantai, ruanganId, asset.id);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+              child: Text('Hapus', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

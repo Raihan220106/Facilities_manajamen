@@ -16,6 +16,9 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final isAdmin = authState.currentUser?.role == 'admin';
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: CustomScrollView(
@@ -27,16 +30,22 @@ class DashboardScreen extends StatelessWidget {
               delegate: SliverChildListDelegate([
                 _buildGreeting(context),
                 const SizedBox(height: 20),
-                _buildStatCards(context),
-                const SizedBox(height: 24),
-                _buildAssetStatusChart(context),
-                const SizedBox(height: 24),
-                _buildRecentMaintenance(context),
-                const SizedBox(height: 24),
+                if (isAdmin) ...[
+                  _buildStatCards(context),
+                  const SizedBox(height: 24),
+                  _buildAssetStatusChart(context),
+                  const SizedBox(height: 24),
+                  _buildRecentMaintenance(context),
+                  const SizedBox(height: 24),
+                ],
                 _buildRecentLaporan(context),
                 const SizedBox(height: 24),
-                _buildRealtimeActivity(context),
-                const SizedBox(height: 80),
+                if (isAdmin) ...[
+                  _buildRealtimeActivity(context),
+                  const SizedBox(height: 80),
+                ] else ...[
+                  const SizedBox(height: 80),
+                ],
               ]),
             ),
           ),
@@ -611,10 +620,16 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildRecentLaporan(BuildContext context) {
     final facility = context.watch<FacilityProvider>();
-    final laporan = facility.laporanKerusakan
-        .where((l) => !l.sudahDitindak)
-        .take(3)
-        .toList();
+    final authState = context.watch<AuthBloc>().state;
+    final isAdmin = authState.currentUser?.role == 'admin';
+
+    final allLaporan = facility.laporanKerusakan.where((l) => !l.sudahDitindak);
+    final filteredLaporan = isAdmin
+        ? allLaporan.toList()
+        : allLaporan.where((l) => l.pelaporId == authState.currentUser?.id).toList();
+
+    final laporan = filteredLaporan.take(3).toList();
+    final title = isAdmin ? 'Laporan Belum Ditindak' : 'Laporan Saya (Belum Ditindak)';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,7 +638,7 @@ class DashboardScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Laporan Belum Ditindak',
+              title,
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -721,7 +736,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  laporanKerusakan.ruangan,
+                  laporanKerusakan.lokasiLengkap,
                   style: GoogleFonts.outfit(
                     fontSize: 12,
                     color: AppColors.textSecondary,

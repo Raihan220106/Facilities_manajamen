@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../providers/facility_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../models/facility_model.dart';
 import 'ruangan_list_screen.dart';
@@ -10,6 +12,9 @@ class LantaiListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final facility = context.watch<FacilityProvider>();
+    final updatedGedung = facility.getGedungById(gedung.id) ?? gedung;
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: CustomScrollView(
@@ -27,7 +32,7 @@ class LantaiListScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  gedung.name,
+                  updatedGedung.name,
                   style: GoogleFonts.outfit(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -56,12 +61,12 @@ class LantaiListScreen extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Gedung info banner
-                _buildGedungBanner(),
+                _buildGedungBanner(updatedGedung),
                 const SizedBox(height: 20),
 
                 // Lantai header
                 Text(
-                  '${gedung.lantai.length} Lantai ditemukan',
+                  '${updatedGedung.lantai.length} Lantai ditemukan',
                   style: GoogleFonts.outfit(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -80,10 +85,10 @@ class LantaiListScreen extends StatelessWidget {
                     mainAxisSpacing: 14,
                     childAspectRatio: 1.0,
                   ),
-                  itemCount: gedung.lantai.length,
+                  itemCount: updatedGedung.lantai.length,
                   itemBuilder: (context, index) {
-                    final lantai = gedung.lantai[index];
-                    return _buildLantaiCard(context, lantai);
+                    final lantai = updatedGedung.lantai[index];
+                    return _buildLantaiCard(context, updatedGedung, lantai);
                   },
                 ),
 
@@ -96,13 +101,13 @@ class LantaiListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGedungBanner() {
+  Widget _buildGedungBanner(GedungModel updatedGedung) {
     int totalRuangan = 0;
     int totalAsset = 0;
     int asetBaik = 0;
     int asetRusak = 0;
 
-    for (var l in gedung.lantai) {
+    for (var l in updatedGedung.lantai) {
       totalRuangan += l.ruangan.length;
       for (var r in l.ruangan) {
         totalAsset += r.assets.length;
@@ -221,7 +226,7 @@ class LantaiListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLantaiCard(BuildContext context, LantaiModel lantai) {
+  Widget _buildLantaiCard(BuildContext context, GedungModel updatedGedung, LantaiModel lantai) {
     int totalRuangan = lantai.ruangan.length;
     int totalAsset = 0;
     int asetBaik = 0;
@@ -261,8 +266,9 @@ class LantaiListScreen extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (_) => RuanganListScreen(
-              lantai: lantai,
-              gedungName: gedung.name,
+              gedungId: updatedGedung.id,
+              nomorLantai: lantai.nomorLantai,
+              gedungName: updatedGedung.name,
             ),
           ),
         );

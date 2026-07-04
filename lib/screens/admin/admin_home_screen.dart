@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../providers/facility_provider.dart';
 import '../../utils/app_theme.dart';
 import 'dashboard_screen.dart';
@@ -18,24 +21,38 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
 
-  final List<_NavItem> _navItems = [
-    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
-    _NavItem(icon: Icons.business_rounded, label: 'Gedung'),
-    _NavItem(icon: Icons.build_circle_rounded, label: 'Maintenance'),
-    _NavItem(icon: Icons.report_problem_rounded, label: 'Laporan'),
-  ];
-
+  late final List<_NavItem> _navItems;
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    _screens = [
-      const DashboardScreen(),
-      const GedungListScreen(),
-      const MaintenanceScreen(),
-      const LaporanScreen(),
-    ];
+    final authState = context.read<AuthBloc>().state;
+    final isAdmin = authState.currentUser?.role == 'admin';
+
+    if (isAdmin) {
+      _navItems = [
+        _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
+        _NavItem(icon: Icons.business_rounded, label: 'Gedung'),
+        _NavItem(icon: Icons.build_circle_rounded, label: 'Maintenance'),
+        _NavItem(icon: Icons.report_problem_rounded, label: 'Laporan'),
+      ];
+      _screens = [
+        const DashboardScreen(),
+        const GedungListScreen(),
+        const MaintenanceScreen(),
+        const LaporanScreen(),
+      ];
+    } else {
+      _navItems = [
+        _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
+        _NavItem(icon: Icons.report_problem_rounded, label: 'Laporan'),
+      ];
+      _screens = [
+        const DashboardScreen(),
+        const LaporanScreen(),
+      ];
+    }
   }
 
   @override
